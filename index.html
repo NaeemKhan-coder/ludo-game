@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Naeem Khan">
+  <meta name="description"
+    content="Ludo Game built with vanilla CSS, JS, using Arrays, Map(), Set(), and dice built with 3D CSS.">
+  <meta name="keywords" content="ludo, game, ludo game, javascript, web game, 3D CSS">
+  <meta name="project" content="Basic Ludo Game">
+  <title>Ludo Game</title>
+
+  <style>
+    /* =========================================================
+   1. RESET & GLOBAL BASE
+========================================================= */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      background: rgb(145, 200, 255);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 5vmin;
+      -webkit-user-select: none;
+      user-select: none;
+      /* Prevent accidental text selection */
+    }
+
+
+    /* =========================================================
+   2. MAIN BOARD CONTAINER (15x15 GRID)
+========================================================= */
+    .container {
+      width: clamp(20rem, 90vmin, 40rem);
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(15, 1fr);
+      grid-template-rows: repeat(15, 1fr);
+      border: 10px double aqua;
+      background: rgb(255, 220, 185);
+
+      /* Layered background: marble + checkerboard */
+      background-image:
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), transparent 60%),
+        conic-gradient(#ddd 90deg, #fff 90deg 180deg, #ddd 180deg 270deg, #fff 270deg);
+      background-size:
+        calc(100% / 15) calc(100% / 15),
+        calc(200% / 15) calc(200% / 15);
+      background-repeat: repeat;
+    }
+
+
+    /* =========================================================
+   3. TRACKS
+========================================================= */
+    .track-red {
+      grid-area: 1/7/7/10;
+      background: rgba(255, 0, 0, 0.4);
+    }
+
+    .track-green {
+      grid-area: 7/10/10/16;
+      background: rgba(0, 255, 0, 0.4);
+    }
+
+    .track-yellow {
+      grid-area: 10/7/16/10;
+      background: rgba(255, 255, 0, 0.4);
+    }
+
+    .track-blue {
+      grid-area: 7/1/10/7;
+      background: rgba(0, 0, 255, 0.4);
+    }
+
+    /* Vertical tracks */
+    .track-red,
+    .track-yellow {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+    }
+
+    /* Horizontal tracks */
+    .track-green,
+    .track-blue {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+    }
+
+
+    /* =========================================================
+   4. CENTER AREA
+========================================================= */
+    .center {
+      grid-area: 7/7/10/10;
+      background: conic-gradient(
+          /*red*/
+          oklch(60% 0.25 20) 45deg,
+          /*green*/
+          oklch(65% 0.25 140) 45deg 135deg,
+          /*yellow*/
+          oklch(90% 0.25 100) 135deg 225deg,
+          /*blue*/
+          oklch(55% 0.25 260) 225deg 315deg,
+          /*red*/
+          oklch(60% 0.25 20) 315deg);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+    }
+
+
+    /* =========================================================
+   5. BASE TOKENS (CIRCLES)
+========================================================= */
+    .circle {
+      width: 80%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      /* border: 8px solid black; */
+      animation: spin 2s linear infinite;
+      /* place-self: center; */
+      pointer-events: none;
+      cursor: pointer;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+
+    /* =========================================================
+   6. GRID CELLS (TRACK NUMBERS)
+========================================================= */
+    .cell {
+      /* display: flex;
+      justify-content: center;
+      align-items: center; */
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: black;
+      border: 0.5px solid skyblue;
+      user-select: none;
+      position: relative;
+    }
+
+    .cell * {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      /* translate: -50% -50%; */
+    }
+
+    /* .cell[data-cell^="r"], */
+    /* .cell[data-cell$="r"], */
+    /* .cell[data-cell*="r"], */
+
+
+    /* .cell:nth-child(15n+7),
+    .cell:nth-child(15n+8),
+    .cell:nth-child(15n+9) {
+      &:is(:nth-child(n+91):nth-child(-n+135)) {
+        border: none;
+      }
+    } */
+
+    /* .cell:nth-child(15n+7):nth-child(n+91):nth-child(-n+135),
+    .cell:nth-child(15n+8):nth-child(n+91):nth-child(-n+135),
+    .cell:nth-child(15n+9):nth-child(n+91):nth-child(-n+135) {
+      border: none;
+    } */
+
+    .center .cell {
+      border: none;
+    }
+
+    /* =========================================================
+   7. 3D DICE (SCENE + CUBE)
+========================================================= */
+    .scene {
+      grid-area: 3/3/5/5;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 20%;
+      background: skyblue;
+      perspective: 50000px;
+      overflow: hidden;
+      container-type: size;
+    }
+
+    .cube {
+      width: 70cqw;
+      aspect-ratio: 1;
+      margin: 15cqw;
+      background: yellow;
+      border-radius: 15%;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: rotateX(-45deg) rotateY(-45deg);
+      cursor: pointer;
+      transition: transform 1s ease;
+      pointer-events: none;
+    }
+
+    /* Dice faces */
+    .face {
+      position: absolute;
+      width: 100%;
+      aspect-ratio: 1;
+      background: white;
+      border-radius: 15%;
+      border: 5cqw solid yellow;
+      box-shadow: inset 0 0 35cqw rgba(255, 100, 255, 0.5);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+    }
+
+    /* 3D positioning */
+    .front {
+      transform: rotateY(0deg) translateZ(35cqw);
+    }
+
+    .back {
+      transform: rotateY(180deg) translateZ(35cqw);
+    }
+
+    .right {
+      transform: rotateY(90deg) translateZ(35cqw);
+    }
+
+    .left {
+      transform: rotateY(-90deg) translateZ(35cqw);
+    }
+
+    .top {
+      transform: rotateX(90deg) translateZ(35cqw);
+    }
+
+    .bottom {
+      transform: rotateX(-90deg) translateZ(35cqw);
+    }
+
+    /* Dice dots */
+    .dot {
+      width: 50%;
+      aspect-ratio: 1;
+      background: red;
+      border-radius: 50%;
+      place-self: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ======================================================
+     MAIN BOARD
+====================================================== -->
+  <div class="container">
+    <div class="base-red"></div>
+    <div class="base-green"></div>
+    <div class="base-yellow"></div>
+    <div class="base-blue"></div>
+
+    <div class="track-red"></div>
+    <div class="track-green"></div>
+    <div class="track-yellow"></div>
+    <div class="track-blue"></div>
+
+    <div class="center"></div>
+  </div>
+
+  <script>
+
+    /* =========================================================
+       1. BASE CONFIG DATA
+    ========================================================= */
+    const boardData = [
+      { name: "red", color: "oklch(60% 0.25 20)", area: "1/10/7/16" },
+      { name: "green", color: "oklch(65% 0.25 140)", area: "10/10/16/16" },
+      { name: "yellow", color: "oklch(90% 0.25 100)", area: "10/1/16/7" },
+      { name: "blue", color: "oklch(55% 0.25 260)", area: "1/1/7/7" }
+    ];
+
+    const bases = document.querySelectorAll(
+      ".base-red, .base-green, .base-yellow, .base-blue"
+    );
+
+
+    /* =========================================================
+       2. BUILD BASES (TOKENS + DICE)
+    ========================================================= */
+    bases.forEach((base, index) => {
+      const data = boardData[index];
+
+      Object.assign(base.style, {
+        backgroundColor: data.color,
+        gridArea: data.area,
+        border: "3px solid pink",
+        display: "grid",
+        gridTemplateColumns: "repeat(6, 1fr)",
+        gridTemplateRows: "repeat(6, 1fr)"
+      });
+
+      // Dice scene
+      const scene = document.createElement("div");
+      scene.classList.add("scene");
+      base.append(scene);
+
+      const cube = document.createElement("div");
+      cube.classList.add("cube");
+      scene.append(cube);
+
+      // Cube faces
+      const faceNames = ["front", "back", "right", "left", "top", "bottom"];
+      faceNames.forEach(name => {
+        const face = document.createElement("div");
+        face.classList.add("face", name);
+        cube.append(face);
+      });
+
+      const patterns = {
+        front: [0, 8],
+        back: [0, 2, 4, 6, 8],
+        right: [0, 4, 8],
+        left: [0, 2, 6, 8],
+        top: [4],
+        bottom: [0, 2, 3, 5, 6, 8,]
+      };
+
+      function createFace(pattern, face) {
+        for (let i = 0; i < 9; i++) {
+          const dot = document.createElement("span");
+          dot.classList.add("dot");
+          if (!pattern.includes(i)) dot.style.visibility = "hidden";
+          face.append(dot);
+        }
+      }
+      Object.keys(patterns).forEach(name => createFace(patterns[name], cube.querySelector("." + name)));
+
+      // Tokens
+      const positions = [[2, 2], [2, 5], [5, 2], [5, 5]];
+      for (let i = 0; i < 4; i++) {
+        const circle = document.createElement("span");
+        circle.classList.add("circle");
+        circle.dataset.color = data.name;
+        circle.style.background = `radial-gradient(${data.color} 30%, aqua 30%)`;
+        circle.style.gridRowStart = positions[i][0];
+        circle.style.gridColumnStart = positions[i][1];
+        circle.style.clipPath = generateStarPath({ points: 5, outerR: 50, innerR: 25, rotation: 0 });
+        base.append(circle);
+      }
+    });
+
+
+    /* =========================================================
+       3. DICE ROLL LOGIC
+    ========================================================= */
+    const rotations = {
+      1: { x: -90, y: 0 },
+      2: { x: 0, y: 0 },   // was 180, swap fix
+      3: { x: 0, y: -90 },    // swapped with 4
+      4: { x: 0, y: 90 },   // swapped with 3
+      5: { x: 180, y: 0 },   // swapped with 2
+      6: { x: 90, y: 0 }
+    };
+
+    function rollDice(e) {
+      const cube = e.currentTarget;
+
+      if (cube.style.pointerEvents === "none") return;
+      cube.style.pointerEvents = "none"; // these 2 lines prevent the current dice from being clicked until it gets its next turn
+
+      const num = Math.floor(Math.random() * 6) + 1;
+      const rotation = rotations[num];
+      const extraSpinX = 360 * (Math.floor(Math.random() * 4) + 2);
+      const extraSpinY = 360 * (Math.floor(Math.random() * 4) + 2);
+      cube.style.transform = `rotateX(${extraSpinX}deg) rotateY(${extraSpinY}deg)`;
+      setTimeout(() => {
+        cube.style.transform = `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`;
+        if (num === 6) {
+          extraTurnGranted = true;
+        }
+
+        gameState = "MOVING";
+
+        nextPlayer(num)
+        // saveGameState();
+        console.log(num)
+
+      }, 1000);
+    }
+
+    document.querySelectorAll(".cube").forEach(cube => cube.addEventListener("click", rollDice));
+
+
+    /* =========================================================
+       4. STAR SHAPE GENERATOR
+    ========================================================= */
+    function generateStarPath({ points = 5, outerR = 50, innerR = 25, rotation = 0 }) {
+      const totalSteps = points * 2;
+      const angleStep = (Math.PI * 2) / totalSteps;
+      const rotationRad = rotation * Math.PI / 180; // convert degrees to radians
+      const startAngle = -Math.PI / 2; // start at top
+      let pathValues = [];
+
+      for (let i = 0; i < totalSteps; i++) {
+        const angle = startAngle + i * angleStep + rotationRad; // step + rotation
+        const r = (i % 2 === 0) ? outerR : innerR;              // alternate outer/inner
+        const x = 50 + r * Math.cos(angle);                     // % relative to container
+        const y = 50 + r * Math.sin(angle);
+        pathValues.push(`${x.toFixed(1)}% ${y.toFixed(1)}%`);
+      }
+
+      return `polygon(${pathValues.join(', ')})`;
+    }
+
+
+    /* =========================================================
+       5. GRID HELPER FUNCTIONS
+    ========================================================= */
+    const cellMap = new Map();
+
+    function fillGrid(container, values, isVertical = true) {
+      if (isVertical) {
+        values.forEach((colArray, colIndex) => colArray.forEach((val, rowIndex) => createCell(container, val, colIndex, rowIndex)));
+      } else {
+        values.forEach((rowArray, rowIndex) => rowArray.forEach((val, colIndex) => createCell(container, val, colIndex, rowIndex)));
+      }
+    }
+
+    function createCell(container, val, colIndex, rowIndex) {
+      const cell = document.createElement("span");
+      cell.classList.add("cell");
+      cell.dataset.cell = val;
+      cell.style.gridColumnStart = colIndex + 1;
+      cell.style.gridRowStart = rowIndex + 1;
+      container.appendChild(cell);
+      cellMap.set(String(val), cell);
+      return cell;
+    }
+
+    function updateBoardTokenStacks(cellValue) {
+      const cell = document.querySelector(`[data-cell="${cellValue}"]`); // or your specific cell selector
+      if (!cell) return;
+
+      const tokens = cell.querySelectorAll('.circle');
+      const total = tokens.length;
+
+      tokens.forEach((token, index) => {
+        if (total === 1) {
+          // Alone in the cell: Perfect center, full size
+          token.style.scale = "1";
+          token.style.translate = "-50% -50%";
+          return;
+        }
+
+        // Shrink tokens slightly so multiple dots fit inside the cell
+        // 2-4 tokens = 65% size, 5+ tokens = 50% size
+        const scaleFactor = total <= 4 ? 0.65 : 0.50;
+        token.style.scale = `${scaleFactor}`;
+
+        // Set the spacing grid gap based on the token size
+        const step = total <= 4 ? 9 : 7;
+
+        let offsetX = 0;
+        let offsetY = 0;
+
+        // Custom Dice Layout Coordinates based on total tokens
+        if (total === 2) {
+          // Diagonal layout like a "2" dice roll (Top-Left and Bottom-Right)
+          offsetX = index === 0 ? -step : step;
+          offsetY = index === 0 ? -step : step;
+        }
+        else if (total === 3) {
+          // Diagonal layout like a "3" dice roll (Top-Left, Center, Bottom-Right)
+          if (index === 0) { offsetX = -step; offsetY = -step; }
+          if (index === 2) { offsetX = step; offsetY = step; }
+          // Index 1 stays at 0, 0 (Center)
+        }
+        else if (total === 4) {
+          // 4 corners layout like a "4" dice roll
+          offsetX = (index % 2 === 0) ? -step : step;
+          offsetY = (index < 2) ? -step : step;
+        }
+        else {
+          // 5 or more tokens: Standard tight 3-column dice matrix (Rows of 3)
+          const columns = 3;
+          const colIndex = index % columns;
+          const rowIndex = Math.floor(index / columns);
+          const totalRows = Math.ceil(total / columns);
+
+          offsetX = (colIndex - (columns - 1) / 2) * step;
+          offsetY = (rowIndex - (totalRows - 1) / 2) * step;
+        }
+
+        // Layer the tokens and execute the translation
+        token.style.zIndex = index;
+        token.style.translate =
+          `calc(-50% + ${offsetX}px) calc(-50% + ${offsetY}px)`;
+      });
+    }
+
+    /* =========================================================
+       6. TRACK DATA
+    ========================================================= */
+    fillGrid(document.querySelector(".track-red"), [
+      [45, 46, 47, 48, 49, 50].toReversed(),
+      [51, 'r1', 'r2', 'r3', 'r4', 'r5'],
+      [52, 1, 2, 3, 4, 5]
+    ], true);
+
+    fillGrid(document.querySelector(".track-green"), [
+      [6, 7, 8, 9, 10, 11],
+      [12, 'g1', 'g2', 'g3', 'g4', 'g5'].toReversed(),
+      [13, 14, 15, 16, 17, 18].toReversed()
+    ], false);
+
+    fillGrid(document.querySelector(".track-yellow"), [
+      [26, 27, 28, 29, 30, 31].toReversed(),
+      [25, 'y1', 'y2', 'y3', 'y4', 'y5'].toReversed(),
+      [19, 20, 21, 22, 23, 24]
+    ], true);
+
+    fillGrid(document.querySelector(".track-blue"), [
+      [39, 40, 41, 42, 43, 44],
+      [38, 'b1', 'b2', 'b3', 'b4', 'b5'],
+      [37, 36, 35, 34, 33, 32]
+    ], false);
+
+
+    /* =========================================================
+       7. CENTER GRID
+    ========================================================= */
+    fillGrid(document.querySelector(".center"), [
+      ['C', 'REnd', 'C'],
+      ['BEnd', 'C', 'GEnd'],
+      ['C', 'YEnd', 'C']
+    ], false);
+
+
+    // =========================================================
+    // 8. COLOR SPECIFIC CELLS + ROTATED STARS
+    // ==========================================================
+
+    const colorGroups = [
+      { color: "red", ids: ["1", "48", "r1", "r2", "r3", "r4", "r5"], rotate: 0 },
+      { color: "green", ids: ["9", "14", "g1", "g2", "g3", "g4", "g5"], rotate: 90 },
+      { color: "yellow", ids: ["22", "27", "y1", "y2", "y3", "y4", "y5"], rotate: 180 },
+      { color: "blue", ids: ["35", "40", "b1", "b2", "b3", "b4", "b5"], rotate: 270 }
+    ];
+
+    colorGroups.forEach(group => {
+      group.ids.forEach(id => {
+        const cell = cellMap.get(id);
+        if (!cell) return;
+
+        // Color the cell
+        cell.style.backgroundColor = group.color;
+
+        // Create star and apply all styles at once
+        const star = document.createElement("span");
+        Object.assign(star.style, {
+          width: "80%",
+          aspectRatio: "1",
+          backgroundColor: "aqua",       // contrasting star color
+          filter: "grayscale(40%)",      // optional
+          clipPath: generateStarPath({ points: 7, outerR: 50, innerR: 15, rotation: 0 }),
+          placeSelf: "center",
+          display: "block",
+          transform: `translate(-50%, -50%) rotate(${group.rotate}deg)`  // minimal rotation line
+        });
+
+        cell.appendChild(star);
+      });
+    });
+
+    /* =========================================================
+       9. SAFE CELLS & PLAYER CONFIG
+    ========================================================= */
+    const GLOBAL_SAFE_CELLS = new Set(['1', '8', '14', '22', '27', '35', '40', '48']);
+    const PLAYER_CONFIG = new Map([
+      ["red", { start: "1", end: "51", home: ['r1', 'r2', 'r3', 'r4', 'r5', 'REnd'] }],
+      ["green", { start: "14", end: "12", home: ['g1', 'g2', 'g3', 'g4', 'g5', 'GEnd'] }],
+      ["yellow", { start: "27", end: "25", home: ['y1', 'y2', 'y3', 'y4', 'y5', 'YEnd'] }],
+      ["blue", { start: "40", end: "38", home: ['b1', 'b2', 'b3', 'b4', 'b5', 'BEnd'] }]
+    ]);
+    const MAIN_PATH = Array.from({ length: 52 }, (_, i) => String(i + 1));
+
+
+    /* =========================================================
+       10. MOVEMENT & CAPTURE LOGIC
+    ========================================================= */
+
+    // Helper to pause execution for crawling animations
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function movePiece(piece, playerColor, fromCellId, diceRoll) {
+      const config = PLAYER_CONFIG.get(playerColor);
+
+      let currentId = fromCellId;
+
+      for (let i = 0; i < diceRoll; i++) {
+        let nextId;
+
+        // Path management logic
+        if (!isNaN(currentId)) {
+          if (currentId === config.end) nextId = config.home[0];
+          else nextId = MAIN_PATH[(MAIN_PATH.indexOf(currentId) + 1) % 52];
+        } else {
+          const idx = config.home.indexOf(currentId);
+          if (idx < config.home.length - 1) nextId = config.home[idx + 1];
+          else break;
+        }
+
+        // Update physical DOM position cell-by-cell
+        const targetCell = cellMap.get(nextId);
+        if (targetCell) {
+          targetCell.appendChild(piece);
+
+          // FIX: Update the cell the piece JUST VACATED
+          updateBoardTokenStacks(currentId);
+
+          // Update the cell the piece JUST ARRIVED AT
+          updateBoardTokenStacks(nextId);
+
+          currentId = nextId;
+          await sleep(250); // Pause for stepping animation effect
+        }
+      }
+
+      return currentId;
+    }
+
+
+
+
+    // Scans a cell and kicks out any opponent pieces
+    function handleCapture(cell, movingPlayerColor) {
+      if (GLOBAL_SAFE_CELLS.has(cell.dataset.cell)) return;
+
+      cell.querySelectorAll(".circle").forEach(piece => {
+        // Check dataset instead of inline styles to ensure perfect matching
+        if (piece.dataset.color !== movingPlayerColor) {
+          kickBackToBase(piece, piece.dataset.color);
+        }
+      });
+    }
+
+
+    function kickBackToBase(piece, color) {
+      console.log("CAPTURED COLOR:", color);
+
+      const oldCell = piece.parentElement;
+      const base = document.querySelector(`.base-${color}`);
+
+      if (base) {
+        base.appendChild(piece);
+
+        // SAFE TARGETED RESET: Erases track offsets without touching grid areas or colors
+        piece.style.scale = "";
+        piece.style.translate = "";
+
+        /* 
+          CAPTURE SEQUENCE DOCUMENTATION:
+          1. movePiece organizes the cell when a piece ARRIVES (e.g. Red lands on Green).
+          2. kickBackToBase snatches the Green piece away, changing the cell's token count.
+          3. We MUST call updateBoardTokenStacks here because movePiece has already finished.
+             This ensures the victorious piece (Red) instantly scales up and centers itself 
+             the exact millisecond the captured piece vanishes.
+        */
+        if (oldCell?.classList.contains("cell")) {
+          updateBoardTokenStacks(oldCell.dataset.cell);
+          extraTurnGranted = true;
+          // saveGameState();
+        }
+      }
+    }
+
+
+    /* =========================================================
+       11. PLAYER TURN LOGIC
+    ========================================================= */
+
+    const players = ["red", "green", "yellow", "blue"];
+    let turn = 0;
+    let gameState = "ROLLING";
+    let currentDiceRoll = 0;
+    let extraTurnGranted = false;
+
+
+    /*function saveGameState() {
+      const state = {
+        turn,
+        gameState,
+        currentDiceRoll,
+        extraTurnGranted
+      };
+
+      localStorage.setItem("ludo_state", JSON.stringify(state));
+    }
+
+    function loadGameState() {
+      const saved = localStorage.getItem("ludo_state");
+      if (!saved) return;
+
+      const state = JSON.parse(saved);
+
+      turn = state.turn;
+      gameState = state.gameState;
+      currentDiceRoll = state.currentDiceRoll;
+      extraTurnGranted = state.extraTurnGranted;
+    }
+
+    function syncUIToState() {
+      // disable all cubes first
+      document.querySelectorAll(".cube").forEach(c => {
+        c.style.pointerEvents = "none";
+      });
+
+      // enable correct player's cube
+      const activeBase = document.querySelector(`.base-${players[turn]}`);
+      if (activeBase) {
+        const cube = activeBase.querySelector(".cube");
+        if (cube) cube.style.pointerEvents = "auto";
+      }
+    }
+
+    loadGameState();
+    syncUIToState();*/
+
+
+
+    // Unlock the very first dice on initial page load
+    document.querySelector(".base-red .cube").style.pointerEvents = "auto";
+
+    // Evaluates the board state immediately after the dice stops rolling
+    function nextPlayer(diceRoll) {
+      gameState = "MOVING";
+      currentDiceRoll = diceRoll; // Lock the roll globally so tokens can access it
+      // saveGameState();
+
+      // FIXED: Track current base name and current player color string accurately
+      const currentBaseName = players[turn];
+      const activePlayerToken = boardData[turn].name;
+
+      // Lock all tokens to clear old turn settings
+      document.querySelectorAll(".circle").forEach(token => {
+        token.style.pointerEvents = "none";
+      });
+
+      // Grant bonus turn if a 6 is rolled
+      if (diceRoll === 6) {
+        extraTurnGranted = true;
+        // saveGameState();
+      }
+
+      // Count how many legal movements this player can make
+      let validMovesCount = 0;
+
+      document.querySelectorAll(`.circle[data-color="${activePlayerToken}"]`)
+        .forEach(token => {
+
+          const parentCell = token.parentElement;
+          const isAtBase = !parentCell.classList.contains("cell");
+
+          const cellId = parentCell.dataset.cell;
+
+          const homeEnd =
+            PLAYER_CONFIG.get(players[turn]).home.at(-1);
+
+          const isFinished =
+            cellId === homeEnd;
+
+          // Finished pieces can never move
+          if (isFinished) return;
+
+          // Base pieces require a 6
+          if (isAtBase) {
+            if (diceRoll === 6) {
+              token.style.pointerEvents = "auto";
+              validMovesCount++;
+            }
+            return;
+          }
+
+          // Overshoot protection
+          const config = PLAYER_CONFIG.get(players[turn]);
+
+          if (config.home.includes(cellId)) {
+
+            const idx = config.home.indexOf(cellId);
+
+            const remainingSlots =
+              config.home.length - 1 - idx;
+
+            if (diceRoll > remainingSlots) {
+              return;
+            }
+          }
+
+          token.style.pointerEvents = "auto";
+          validMovesCount++;
+        });
+
+
+
+
+
+      // Skip Phase: If player has no moves, advance the turn clock immediately
+      if (validMovesCount === 0) {
+        gameState = "ROLLING";
+        // saveGameState();
+
+        if (!extraTurnGranted) {
+          turn = (turn + 1) % players.length;
+          // saveGameState();
+        }
+        extraTurnGranted = false;
+        // saveGameState();
+
+        // Unlock the upcoming valid player's dice base container
+        const nextBase = document.querySelector(`.base-${players[turn]}`);
+        if (nextBase) {
+          const activeCube = nextBase.querySelector(".cube");
+          if (activeCube) activeCube.style.pointerEvents = "auto";
+        }
+        return;
+      }
+    }
+
+    // Event listener managing interactive tokens out on the board
+    document.querySelectorAll(".circle").forEach(token => {
+      token.addEventListener("click", async () => {
+        // Block clicks out of phase or on frozen elements
+        if (gameState !== "MOVING" || token.style.pointerEvents === "none") return;
+
+        // Lock all board tokens to prevent double-clicks or switching choices mid-move
+        document.querySelectorAll(".circle").forEach(t => t.style.pointerEvents = "none");
+
+        const currentPlayer = players[turn];
+        const config = PLAYER_CONFIG.get(currentPlayer);
+        const parentCell = token.parentElement;
+        //These 3 lines are just a defensive safeguard. Normally it should never trigger because finished pieces won't be clickable anymore.
+        const cellId = parentCell.dataset.cell;
+        const homeEnd = config.home.at(-1);
+        if (cellId === homeEnd) return;
+        const isAtBase = !parentCell.classList.contains("cell");
+
+        let finalCellId;
+
+        if (isAtBase) {
+          // Step out of base onto starting tile
+          const startCell = cellMap.get(config.start);
+          if (startCell) {
+            // startCell.appendChild(token);
+            // finalCellId = config.start;
+            startCell.appendChild(token);
+            updateBoardTokenStacks(config.start);
+
+            finalCellId = config.start;
+          }
+        } else {
+          // Move forward step-by-step along path tracking
+          const currentCellId = parentCell.dataset.cell;
+          finalCellId = await movePiece(token, currentPlayer, currentCellId, currentDiceRoll);
+        }
+
+        // Evaluate capture rules at resting tile destination
+        const destinationCell = cellMap.get(finalCellId);
+        if (destinationCell) {
+          handleCapture(destinationCell, token.dataset.color);
+        }
+
+        // Grant bonus turn if token lands inside final inner triangle target zone
+        if (finalCellId === config.home.at(-1)) {
+          extraTurnGranted = true;
+          // saveGameState();
+        }
+
+        // Determine upcoming player assignment boundaries
+        if (!extraTurnGranted) {
+          turn = (turn + 1) % players.length;
+          // saveGameState();
+        }
+
+        console.log("TURN ADVANCED TO:", players[turn]);
+        extraTurnGranted = false;
+        // saveGameState();
+
+        gameState = "ROLLING";
+        // saveGameState();
+
+        // Pass physical dice rolling accessibility to next player
+        const nextBase = document.querySelector(`.base-${players[turn]}`);
+        if (nextBase) {
+          const activeCube = nextBase.querySelector(".cube");
+          if (activeCube) activeCube.style.pointerEvents = "auto";
+        }
+      });
+    });
+
+  </script>
+
+
+
+</body>
+
+</html>
