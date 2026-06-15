@@ -21,6 +21,8 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     html,
@@ -480,11 +482,11 @@
 
         // Shrink tokens slightly so multiple dots fit inside the cell
         // 2-4 tokens = 65% size, 5+ tokens = 50% size
-        const scaleFactor = total <= 4 ? 0.65 : 0.50;
+        const scaleFactor = total <= 4 ? 0.80 : 0.60;
         token.style.scale = `${scaleFactor}`;
 
         // Set the spacing grid gap based on the token size
-        const step = total <= 4 ? 9 : 7;
+        const step = total <= 4 ? 20 : 24;
 
         let offsetX = 0;
         let offsetY = 0;
@@ -520,7 +522,7 @@
         // Layer the tokens and execute the translation
         token.style.zIndex = index;
         token.style.translate =
-          `calc(-50% + ${offsetX}px) calc(-50% + ${offsetY}px)`;
+          `calc(-50% + ${offsetX}%) calc(-50% + ${offsetY}%)`;
       });
     }
 
